@@ -16,6 +16,13 @@
   var MARKERS = window.GTA6_MARKERS;
   if (!app || !TAX || !MARKERS) return;
 
+  // header count was static text in index.html; keep it in step with added markers
+  var headMeta = document.getElementById('headMeta');
+  if (headMeta) {
+    var nTypes = TAX.groups.reduce(function (n, g) { return n + g.types.length; }, 0);
+    headMeta.textContent = MARKERS.length.toLocaleString('en-US') + ' markers · ' + nTypes + ' types · ' + TAX.sections.length + ' sections';
+  }
+
   /* ------------------------------------------------------------------ data */
   // kind: 'count' (default) | 'money' | 'bool'
   // map: marker type names on this map. auto: count = found markers of those types.
