@@ -12,7 +12,7 @@ Sign-in and cloud saves use Firebase (free "Spark" plan is plenty). Do this once
 1. Left menu: **Build → Authentication → Get started**.
 2. **Sign-in method** tab → **Google** → switch **Enable** on → pick your support email → **Save**.
 3. **Settings** tab → **Authorized domains** → **Add domain** → enter your Pages domain,
-   e.g. `YOUR-GITHUB-USERNAME.github.io` → **Add**.
+   `maumit.github.io` → **Add**.
 
 ## 3. Create the database
 
