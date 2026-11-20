@@ -115,7 +115,8 @@
     onlyList: null,               // checklist id used as a hard filter
     adding: false,                // "add marker" click mode
     heatIds: [],                  // enabled heatmap layer ids
-    heatOn: false                 // master heatmap overlay switch
+    heatOn: false,                // master heatmap overlay switch
+    hundred: { c: {}, n: {} }     // 100% checklist: c = counters, n = named trackers
   };
 
   /* ------------------------------------------------------- v2 small utils */
@@ -178,6 +179,34 @@
     };
   }
 
+  /* 100% checklist state: { c: {itemId: number}, n: {listId: {k: [checked names], x: [added names]}} } */
+  function sanitizeHundred(h) {
+    var out = { c: {}, n: {} };
+    if (!h || typeof h !== 'object') return out;
+    var okKey = function (k) { return typeof k === 'string' && /^[a-z0-9_-]{1,40}$/i.test(k); };
+    var names = function (a) {
+      var seen = Object.create(null), r = [];
+      (Array.isArray(a) ? a : []).forEach(function (x) {
+        if (typeof x !== 'string') return;
+        x = x.trim().slice(0, 60);
+        if (!x || seen[x]) return;
+        seen[x] = 1; r.push(x);
+      });
+      return r.slice(0, 2000);
+    };
+    if (h.c && typeof h.c === 'object') Object.keys(h.c).forEach(function (k) {
+      var v = Math.floor(Number(h.c[k]));
+      if (okKey(k) && isFinite(v) && v > 0) out.c[k] = Math.min(v, 1e9);
+    });
+    if (h.n && typeof h.n === 'object') Object.keys(h.n).forEach(function (k) {
+      var l = h.n[k];
+      if (!okKey(k) || !l || typeof l !== 'object') return;
+      var e = { k: names(l.k), x: names(l.x) };
+      if (e.k.length || e.x.length) out.n[k] = e;
+    });
+    return out;
+  }
+
   function loadProgress() {
     var raw;
     try { raw = localStorage.getItem(STORE_KEY); } catch (e) { return; }
@@ -210,6 +239,7 @@
       if (typeof d.onlyList === 'string' && listById(d.onlyList)) state.onlyList = d.onlyList;
       if (Array.isArray(d.heat)) state.heatIds = d.heat.filter(function (id) { return typeof id === 'string'; });
       if (typeof d.heatOn === 'boolean') state.heatOn = d.heatOn;
+      if (d.hundred) state.hundred = sanitizeHundred(d.hundred);
     }
   }
 
@@ -229,12 +259,16 @@
       onlyList: state.onlyList,
       heat: state.heatIds,
       heatOn: state.heatOn,
+      hundred: state.hundred,
       updated: new Date().toISOString()
     };
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(payload));
     } catch (e) {
       if (!storageWarned) { storageWarned = true; toast('Progress could not be saved (browser storage blocked).'); }
+    }
+    if (typeof window.__hundredRefresh === 'function') {
+      try { window.__hundredRefresh(); } catch (e) { console.error('[100%]', e); }
     }
     // cloud-sync.js (Google sign-in) mirrors every save to the signed-in account
     if (typeof window.__cloudSave === 'function') {
@@ -2318,7 +2352,8 @@
       onlyNotes: state.onlyNotes,
       onlyList: state.onlyList,
       heat: state.heatIds,
-      heatOn: state.heatOn
+      heatOn: state.heatOn,
+      hundred: state.hundred
     };
   }
 
@@ -2406,6 +2441,7 @@
       if (typeof data.onlyNotes === 'boolean') state.onlyNotes = data.onlyNotes;
       if (Array.isArray(data.heat)) state.heatIds = data.heat.filter(function (id) { return typeof id === 'string'; });
       if (typeof data.heatOn === 'boolean') state.heatOn = data.heatOn;
+      if (data.hundred) state.hundred = sanitizeHundred(data.hundred);
       state.onlyList = (typeof data.onlyList === 'string' && listById(data.onlyList)) ? data.onlyList : null;
     }
 
@@ -2765,6 +2801,8 @@
     },
     setNote: function (id, text) { setNote(id, text); saveProgress(); markers.schedule(); recount(); },
     refresh: function () { refreshAllUI(); },
+    save: function () { saveProgress(); },
+    search: function (q) { searchEl.value = q; runSearch(q); },
     heat: {
       index: function () { return HEAT.index; },
       enabled: function () { return Array.from(heatUI.sel || []); },

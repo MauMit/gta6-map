@@ -61,7 +61,7 @@ function isEmpty(d) {
  * The app re-saves on some UI events without changing anything, so change
  * detection compares content, never timestamps. */
 const FP_KEYS = ['found', 'notes', 'custom', 'lists', 'hidden', 'hideFound', 'theme',
-  'completion', 'onlyNotes', 'onlyList', 'heat', 'heatOn'];
+  'completion', 'onlyNotes', 'onlyList', 'heat', 'heatOn', 'hundred'];
 function stable(v) {
   if (Array.isArray(v)) return '[' + v.map(stable).join(',') + ']';
   if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
@@ -92,8 +92,16 @@ function merge(a, b) {
     const cur = listMap.get(l.id);
     if (cur && cur !== l) cur.markerIds = [...new Set([...(cur.markerIds || []), ...(l.markerIds || [])])];
   });
+  // 100% checklist: in-game progress only goes up, so counters keep the higher value
+  const ha = older.hundred || { c: {}, n: {} }, hb = newer.hundred || { c: {}, n: {} };
+  const hundred = { c: Object.assign({}, ha.c || {}), n: {} };
+  Object.keys(hb.c || {}).forEach((k) => { hundred.c[k] = Math.max(hundred.c[k] || 0, hb.c[k] || 0); });
+  new Set([...Object.keys(ha.n || {}), ...Object.keys(hb.n || {})]).forEach((k) => {
+    const a = (ha.n || {})[k] || {}, b = (hb.n || {})[k] || {};
+    hundred.n[k] = { k: [...new Set([...(a.k || []), ...(b.k || [])])], x: [...new Set([...(a.x || []), ...(b.x || [])])] };
+  });
   return Object.assign({}, older, newer, {
-    found: [...found].sort(), notes, custom, lists: [...listMap.values()]
+    found: [...found].sort(), notes, custom, lists: [...listMap.values()], hundred
   });
 }
 
@@ -224,7 +232,7 @@ function merge(a, b) {
     if (!cloud) {                                     // first sign-in on any device
       if (local && !isEmpty(local) && (s.uid === user.uid || !s.uid)) await upload(local);
       else if (s.uid && s.uid !== user.uid) {          // previous account's data on this device
-        apply({ found: [], notes: {}, custom: [], lists: [] });
+        apply({ found: [], notes: {}, custom: [], lists: [], hundred: { c: {}, n: {} } });
         markSynced(fingerprint(localDoc()), null);
       } else setStatus('Signed in — progress will save here', 'cloud');
       return;
