@@ -990,3 +990,11 @@ body.lb-open { overflow: hidden; }
   .hd-head, .hd-body { padding-left: 16px; padding-right: 16px; }
   .hd-item-top { flex-direction: column; gap: 2px; }
 }
+
+/* Keep each visually-hidden checkbox inside its own label. Without a positioned
+ * parent, the input sat thousands of pixels down the sidebar; clicking a switch
+ * focused it and the browser scrolled the whole layout away (black screen). */
+.type-row, .switch-row, .chip-btn, .h-layer { position: relative; }
+.type-row input[type="checkbox"], .cbx-label input, .switch-row input, .chip-btn input, .h-layer input {
+  top: 0; left: 0; margin: 0;
+}
