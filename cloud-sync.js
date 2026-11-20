@@ -33,6 +33,7 @@ function setStatus(text, kind) {
   if (ui.pill) {
     ui.pill.textContent = kind === 'cloud' ? 'cloud' : kind === 'error' ? 'sync error' : kind === 'busy' ? 'syncing' : 'local';
     ui.pill.dataset.kind = kind || 'local';
+    ui.pill.title = kind === 'error' ? text : 'Where your progress is saved';   // hover shows the error
   }
 }
 
@@ -280,7 +281,9 @@ function merge(a, b) {
       await reconcile(d && d.data, d && d.updated, true);
     } catch (e) {
       console.error('[cloud] initial sync failed', e);
-      setStatus('Sync failed: ' + (e.code || e.message), 'error');
+      setStatus('Sync failed: ' + (e.code || e.message) + ' (retrying)', 'error');
+      // try again shortly as long as the same account is still signed in
+      setTimeout(() => { if (user && user.uid === u.uid && !ready) startUser(u); }, 15000);
       return;
     }
     ready = true;

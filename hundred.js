@@ -49,7 +49,7 @@
         { id: 'unique_races', q: 'Racing', name: 'Unique races won', req: 30, total: 40, map: ['Thrillbilly Mud Club', 'Animal Crackers', "Hit 'n' Run VC", 'Hamlet Boone Speedway', 'Ambrosia Raceway', 'Gellhorn Raceway'] },
         { id: 'race_golds', name: 'Race challenge gold medals', req: 10, total: 13, map: ['Racing Challenge'] },
         { id: 'wainK', q: 'WAiNK', name: 'WAiNK locations scanned', req: 100, map: ['Landmark', 'Curiosity', 'Sculpture'] },
-        { id: 'cards', q: 'Collectible Cards', name: 'Collectible card sets found', req: 15, total: 18, map: ['Jack of Hearts', 'Delights', 'Nine1Nine'] },
+        { id: 'cards', q: 'Collectible Cards', name: 'Collectible card sets completed', req: 15, total: 18, derive: 'cardSets', map: ['Jack of Hearts', 'Delights', 'Nine1Nine'], note: '480 cards in 18 sets. Track each set in the card collection below' },
         { id: 'kenton', name: 'Kenton sets completed', req: 5, total: 7 },
         { id: 'underwater', name: 'Underwater discoveries found', req: 33, total: 33 },
         { id: 'reading', name: 'Magazines, books & comics found', req: 30, total: 34, map: ['Magazine', 'Book Swap'] },
@@ -105,6 +105,43 @@
     }
   };
 
+  // Collectible cards: 18 sets, 480 cards (launch-week guides). The three dancer
+  // sets are fully on the map, so they count from found markers. For the rest,
+  // count cards by hand or log card names (ticking a name adds to the count).
+  var CARD_SETS = [
+    ['vc_flamingos', 'Vice City Flamingos', 24],
+    ['vc_narcos', 'Vice City Narcos', 24],
+    ['vc_manatees', 'Vice City Manatees', 24],
+    ['vc_futbol', 'Club De Fútbol', 30],
+    ['lc_swingers', 'Liberty City Swingers', 24],
+    ['lc_penetrators', 'Liberty City Penetrators', 24],
+    ['lc_wrath', 'Liberty City Wrath', 24],
+    ['ls_corkers', 'Los Santos Corkers', 24],
+    ['ls_panic', 'Los Santos Panic', 24, ['Marquise Bernard']],
+    ['ls_pounders', 'Los Santos Pounders', 24],
+    ['wrestling', 'Backyard Wrestling', 12],
+    ['top_hooker', "America's Next Top Hooker", 24],
+    ['delights', 'Delights Dancers', 18, null, 'Delights'],
+    ['jack_hearts', 'Jack of Hearts Dancers', 36, null, 'Jack of Hearts'],
+    ['nine1nine', 'Nine1Nine Dancers', 36, null, 'Nine1Nine'],
+    ['ratface', 'The Legends of Ratface', 36],
+    ['right_wing', "Right Wing: America's Hero", 36],
+    ['ed_comics', 'Ed Comics Universe', 36]
+  ];
+  var CARD_ITEMS = CARD_SETS.map(function (c) {
+    var it = { id: 'card_' + c[0], name: c[1], req: c[2], total: c[2], sub: true };
+    if (c[4]) { it.auto = true; it.map = [c[4]]; it.note = 'Every card is on the map: tick them found there'; }
+    else {
+      it.list = 'card_' + c[0];
+      LISTS[it.list] = {
+        title: 'Card names',
+        hint: 'Optional: log cards by name. Ticking or adding a name adds 1 to this set.',
+        groups: c[3] ? [['Known cards', c[3]]] : []
+      };
+    }
+    return it;
+  });
+
   /* ------------------------------------------------------------- helpers */
   var typeSlugByName = Object.create(null);
   TAX.groups.forEach(function (g) { g.types.forEach(function (t) { typeSlugByName[t.name] = t.slug; }); });
@@ -125,7 +162,12 @@
     return n;
   }
 
-  function valueOf(item) { return item.auto ? mapCount(item) : (H().c[item.id] || 0); }
+  function valueOf(item) {
+    if (item.derive === 'cardSets') {
+      return CARD_ITEMS.filter(function (s) { return valueOf(s) >= s.req; }).length;
+    }
+    return item.auto ? mapCount(item) : (H().c[item.id] || 0);
+  }
 
   function setValue(item, v) {
     v = Math.max(0, Math.floor(Number(v) || 0));
@@ -146,6 +188,7 @@
   }
 
   var ALL = [];
+  var cardTotalsEl = null;
   GROUPS.forEach(function (g) { g.items.forEach(function (it) { it.group = g; ALL.push(it); }); });
 
   function summary() {
@@ -211,6 +254,8 @@
     var name = el('div', 'hd-name');
     name.appendChild(el('b', null, item.name));
     if (item.auto) name.appendChild(el('span', 'hd-tag', 'auto from map'));
+    if (item.derive) name.appendChild(el('span', 'hd-tag', 'auto from card sets'));
+    if (item.sub) row.classList.add('hd-sub');
     top.appendChild(name);
     var val = el('span', 'hd-val');
     top.appendChild(val);
@@ -228,7 +273,7 @@
       lbl.appendChild(cb); lbl.appendChild(el('span', null, 'Done'));
       ctl.appendChild(lbl);
       r.check = cb;
-    } else if (!item.auto) {
+    } else if (!item.auto && !item.derive) {
       var step = item.kind === 'money' ? 10000 : 1;
       var minus = el('button', 'mini', '−'); minus.type = 'button';
       minus.setAttribute('aria-label', 'Decrease ' + item.name);
@@ -259,6 +304,15 @@
     }
     row.appendChild(ctl);
     if (item.list) row.appendChild(buildList(item));
+    if (item.derive === 'cardSets') {
+      var coll = el('details', 'hd-list hd-cards');
+      coll.appendChild(el('summary', null, 'Card collection (18 sets, 480 cards)'));
+      var cardsHead = el('div', 'hd-note');
+      coll.appendChild(cardsHead);
+      CARD_ITEMS.forEach(function (ci) { coll.appendChild(buildItem(ci)); });
+      row.appendChild(coll);
+      cardTotalsEl = cardsHead;
+    }
     rows.push(r);
     return row;
   }
@@ -306,7 +360,7 @@
     wrap.appendChild(extra);
     var add = el('div', 'inline-add');
     var addIn = el('input'); addIn.type = 'text'; addIn.maxLength = 60;
-    addIn.placeholder = 'Add a name (counts it as found)';
+    addIn.placeholder = 'Add a name (adds 1 to the count)';
     addIn.setAttribute('aria-label', 'Add to ' + def.title);
     var addBtn = el('button', 'mini', 'Add'); addBtn.type = 'button';
     function doAdd() {
@@ -376,6 +430,11 @@
   /* -------------------------------------------------------------- refresh */
   function refresh() {
     var s = summary();
+    if (cardTotalsEl) {
+      var have = 0, setsDone = 0;
+      CARD_ITEMS.forEach(function (ci) { var v = Math.min(valueOf(ci), ci.req); have += v; if (v >= ci.req) setsDone++; });
+      cardTotalsEl.textContent = have + ' / 480 cards · ' + setsDone + ' / 18 sets complete. Sets and sizes from launch-week guides.';
+    }
     card.querySelector('.hd-card-pct').textContent = s.pct + '%';
     card.querySelector('.bar i').style.width = s.pct + '%';
     card.querySelector('.hd-card-sub').textContent = s.met + ' / ' + s.total + ' requirements met';
