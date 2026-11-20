@@ -1007,3 +1007,10 @@ body.lb-open { overflow: hidden; }
 .hd-item.hd-sub .hd-list summary { font-size: 11.5px; }
 .hd-list .inline-add { display: flex; gap: 6px; }
 .hd-list .inline-add input { flex: 1 1 auto; min-width: 0; }
+.hd-pin {
+  flex: 0 0 auto; background: none; border: 0; color: var(--dim-2); font-size: 13px; line-height: 1;
+  padding: 0 3px; cursor: pointer;
+}
+.hd-pin:hover, .hd-pin:focus-visible { color: var(--accent-2); }
+.hd-chk .hd-pin + .hd-x { margin-left: 0; }
+.hd-chk .hd-pin { margin-left: auto; }

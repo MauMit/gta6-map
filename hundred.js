@@ -105,6 +105,45 @@
     }
   };
 
+  // The map ships spawn heatmaps for every animal and vehicle. Use their names as
+  // the full tracker lists (falls back to the short lists above if missing).
+  var HEATIDX = (window.GTA6_HEATMAPS && window.GTA6_HEATMAPS.index) || [];
+  var heatIdByName = Object.create(null);
+  function heatGroups(keep) {
+    var order = [], by = Object.create(null), seen = Object.create(null);
+    HEATIDX.forEach(function (h) {
+      if (!h || !h.title || !keep(h.label || '') || seen[h.title]) return;
+      seen[h.title] = 1;
+      heatIdByName[h.title] = h.id;
+      if (!by[h.label]) { by[h.label] = []; order.push(h.label); }
+      by[h.label].push(h.title);
+    });
+    return order.map(function (l) { return [l.replace(/^Animals - /, ''), by[l].sort()]; });
+  }
+  if (HEATIDX.length) {
+    var aGroups = heatGroups(function (l) { return /^Animals - /.test(l); });
+    var vGroups = heatGroups(function (l) { return !/^Animals - /.test(l) && l !== 'Trailers' && l !== 'Drones'; });
+    var count = function (gs) { return gs.reduce(function (n, g) { return n + g[1].length; }, 0); };
+    if (aGroups.length) {
+      LISTS.animals.groups = aGroups;
+      LISTS.animals.hint = count(aGroups) + ' animals from the map spawn data. Tick what you have studied; ⌖ shows where it spawns.';
+    }
+    if (vGroups.length) {
+      LISTS.vehicles.groups = vGroups;
+      LISTS.vehicles.hint = count(vGroups) + ' vehicles from the map spawn data (trailers left out). Tick what you have discovered; ⌖ shows where it spawns.';
+    }
+  }
+
+  // show one animal/vehicle's spawn heatmap on the map
+  function showSpawns(nm) {
+    var id = heatIdByName[nm];
+    if (!id || !app.heat) return;
+    app.heat.open(true);
+    app.heat.enable(app.heat.enabled(), false);
+    app.heat.enable([id], true);
+    close();
+  }
+
   // Collectible cards: 18 sets, 480 cards (launch-week guides). The three dancer
   // sets are fully on the map, so they count from found markers. For the rest,
   // count cards by hand or log card names (ticking a name adds to the count).
@@ -334,6 +373,13 @@
       cb.addEventListener('change', function () { toggleName(item, nm, cb.checked); });
       lbl.appendChild(cb);
       lbl.appendChild(el('span', null, nm));
+      if (heatIdByName[nm]) {
+        var pin = el('button', 'hd-pin', '⌖'); pin.type = 'button';
+        pin.title = 'Show where ' + nm + ' spawns';
+        pin.setAttribute('aria-label', pin.title);
+        pin.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); showSpawns(nm); });
+        lbl.appendChild(pin);
+      }
       if (removable) {
         var x = el('button', 'hd-x', '✕'); x.type = 'button';
         x.setAttribute('aria-label', 'Remove ' + nm);
@@ -460,10 +506,10 @@
     listUIs.forEach(function (ui) {
       var l = H().n[ui.id] || { k: [], x: [] };   // read-only: viewing never writes
       l = { k: l.k || [], x: l.x || [] };
-      l.x.forEach(function (nm) { if (!ui.boxes[nm]) ui.addBox(ui.extraGrid, nm, true); });
+      l.x.concat(l.k).forEach(function (nm) { if (!ui.boxes[nm]) ui.addBox(ui.extraGrid, nm, true); });
       Object.keys(ui.boxes).forEach(function (nm) {
         var box = ui.boxes[nm];
-        if (ui.extraGrid.contains(box) && l.x.indexOf(nm) < 0) {   // removed (here or on another device)
+        if (ui.extraGrid.contains(box) && l.x.indexOf(nm) < 0 && l.k.indexOf(nm) < 0) {   // removed (here or on another device)
           box.parentNode.remove();
           ui.labels = ui.labels.filter(function (x) { return x.q !== nm.toLowerCase(); });
           delete ui.boxes[nm];
@@ -471,7 +517,7 @@
         }
         box.checked = l.k.indexOf(nm) >= 0;
       });
-      ui.extraEl.hidden = !l.x.length;
+      ui.extraEl.hidden = !ui.extraGrid.children.length;
     });
   }
 
