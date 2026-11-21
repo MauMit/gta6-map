@@ -446,6 +446,17 @@
         if (hit) openMarker(hit.m, true);
         else { map.closePopup(); self.select(null); }
       });
+      // right-click (long-press on touch) a marker to toggle found without opening it.
+      // Leaflet suppresses the browser's context menu while this listener exists.
+      map.on('contextmenu', function (e) {
+        if (state.adding) return;
+        var hit = self.hitTest(e.containerPoint);
+        if (!hit || hit.custom) return;
+        toggleFound(hit.m.id);
+        if (state.query) runSearch(state.query);
+        toast((state.found.has(hit.m.id) ? '✓ Found: ' : 'Not found: ') + hit.m.n);
+        if (tipHit && tipHit.m === hit.m) showTip(hit, e.containerPoint);
+      });
       map.on('mousedown', function (e) { self.maybeDrag(e); });
       map.on('mousemove', function (e) { self.hover(e); });
       map.on('mouseout', hideTip);
@@ -679,7 +690,8 @@
       } else {
         var m = tipHit.m;
         b.textContent = m.n;
-        s.textContent = m._ti.name + ' · ' + m._ti.groupName;
+        s.textContent = m._ti.name + ' · ' + m._ti.groupName +
+          (state.found.has(m.id) ? ' · found ✓ (right-click to undo)' : ' · right-click to mark found');
       }
       tipEl.appendChild(b); tipEl.appendChild(s);
       tipEl.style.left = tipPt.x + 'px';
