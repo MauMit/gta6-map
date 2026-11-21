@@ -155,7 +155,7 @@
   // sets are fully on the map, so they count from found markers. For the rest,
   // count cards by hand or log card names (ticking a name adds to the count).
   var CARD_SETS = [
-    ['vc_flamingos', 'Vice City Flamingos', 24],
+    ['vc_flamingos', 'Vice City Flamingos', 24, ['Jude Flores']],
     ['vc_narcos', 'Vice City Narcos', 24],
     ['vc_manatees', 'Vice City Manatees', 24],
     ['vc_futbol', 'Club De Fútbol', 30],
